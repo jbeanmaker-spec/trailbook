@@ -35,7 +35,7 @@ struct TripView: View {
                     .background(Theme.amberBg)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
                     NavigationLink {
-                        WeatherView()
+                        WeatherView(pushed: true)
                     } label: {
                         Label("Full forecast (live)", systemImage: "cloud.sun")
                             .font(Theme.heading)
