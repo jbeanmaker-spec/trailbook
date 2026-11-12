@@ -11,7 +11,7 @@ struct TripView: View {
 
     private var status: String {
         guard let f = weather.fetched else {
-            return weather.failed ? "NO FORECAST YET · NO SIGNAL" : "LOADING FORECAST"
+            return weather.failed ? "NO FORECAST YET · NO SIGNAL" : "TAP REFRESH FOR THE LATEST FORECAST"
         }
         let t = f.formatted(date: .omitted, time: .shortened)
         return weather.failed ? "SAVED FORECAST FROM \(t) · NO SIGNAL" : "NWS FORECAST · UPDATED \(t)"
@@ -76,7 +76,6 @@ struct TripView: View {
             }
         }
         .background(Theme.surface100.ignoresSafeArea())
-        .task { await weather.refresh(latitude: lat, longitude: lon) }
     }
 }
 

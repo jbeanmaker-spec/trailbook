@@ -3,8 +3,8 @@ import Combine
 
 // National Weather Service forecast (US only, free, no key).
 
-struct ForecastPeriod: Codable, Identifiable, Equatable {
-    struct Value: Codable, Equatable { let value: Double? }
+struct ForecastPeriod: Codable, Identifiable, Equatable, Sendable {
+    struct Value: Codable, Equatable, Sendable { let value: Double? }
     let number: Int
     let name: String
     let startTime: String
@@ -42,7 +42,7 @@ struct ForecastDay: Identifiable {
     var maxRain: Int { max(day?.rainChance ?? 0, night?.rainChance ?? 0) }
 }
 
-private struct PointsResponse: Decodable {
+private struct PointsResponse: Decodable, Sendable {
     struct Props: Decodable {
         struct Rel: Decodable { struct P: Decodable { let city: String; let state: String }; let properties: P }
         let forecast: String
@@ -50,7 +50,7 @@ private struct PointsResponse: Decodable {
     }
     let properties: Props
 }
-private struct ForecastResponse: Decodable {
+private struct ForecastResponse: Decodable, Sendable {
     struct Props: Decodable { let periods: [ForecastPeriod] }
     let properties: Props
 }
@@ -116,7 +116,7 @@ final class WeatherStore: ObservableObject {
         }
     }
 
-    private func get<T: Decodable>(_ s: String) async throws -> T {
+    nonisolated private func get<T: Decodable & Sendable>(_ s: String) async throws -> T {
         guard let u = URL(string: s) else { throw URLError(.badURL) }
         var req = URLRequest(url: u, timeoutInterval: 15)
         req.setValue("Trailbook/1.0 (personal camping app)", forHTTPHeaderField: "User-Agent")
