@@ -91,6 +91,21 @@ final class MealStore: ObservableObject {
         save()
     }
 
+    /// Renames a shopping item everywhere it appears (meals and hand-added items).
+    func renameItem(_ old: String, to new: String) {
+        let n = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty, n != old else { return }
+        let oldKey = old.lowercased()
+        for i in meals.indices {
+            for j in meals[i].pack.indices where meals[i].pack[j].lowercased() == oldKey {
+                meals[i].pack[j] = n
+            }
+        }
+        for j in extras.indices where extras[j].lowercased() == oldKey { extras[j] = n }
+        if bought.remove(oldKey) != nil { bought.insert(n.lowercased()) }
+        save()
+    }
+
     func removeExtra(_ item: String) {
         extras.removeAll { $0 == item }
         save()

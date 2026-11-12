@@ -240,6 +240,7 @@ struct MealDetailView: View {
 struct ShoppingView: View {
     @EnvironmentObject private var meals: MealStore
     @State private var newItem = ""
+    @State private var editing: ShoppingLine?
     var body: some View {
         List {
             Section {
@@ -277,6 +278,10 @@ struct ShoppingView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.5).onEnded { _ in editing = line }
+                )
+                .accessibilityAction(named: "Edit") { editing = line }
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                     if line.isExtra {
                         Button(role: .destructive) { meals.removeExtra(line.item) } label: {
@@ -289,6 +294,10 @@ struct ShoppingView: View {
         }
         .navigationTitle("Shopping list")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing) { line in
+            EditItemSheet(original: line.item) { meals.renameItem(line.item, to: $0) }
+                .presentationDetents([.medium])
+        }
     }
 
     private func addItem() {
@@ -352,5 +361,43 @@ struct SendToMealSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
+    }
+}
+
+private struct EditItemSheet: View {
+    let original: String
+    let onSave: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Item name") {
+                    TextField("Item name", text: $text)
+                        .focused($focused).submitLabel(.done).onSubmit(save)
+                        .frame(minHeight: Theme.tapMin)
+                }
+                Text("Changing it here changes it in every meal that uses it.")
+                    .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+            }
+            .navigationTitle("Edit item")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .onAppear { text = original; focused = true }
+        }
+    }
+
+    private func save() {
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        onSave(text)
+        dismiss()
     }
 }
