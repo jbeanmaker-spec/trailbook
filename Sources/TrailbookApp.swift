@@ -93,15 +93,12 @@ struct RootView: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { open.toggle() }
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: open ? "xmark" : selected.icon)
-                    Text(open ? "Close" : selected.rawValue).font(Theme.heading)
-                }
-                .padding(.horizontal, 18)
-                .frame(minHeight: 56)
-                .background(Theme.ember)
-                .foregroundColor(Color(UIColor(hex: 0x1F2A22)))
-                .clipShape(Capsule())
+                Image(systemName: open ? "xmark" : selected.icon)
+                    .font(.system(size: 24, weight: .semibold))
+                    .frame(width: 60, height: 60)
+                    .background(Theme.ember)
+                    .foregroundColor(Color(UIColor(hex: 0x1F2A22)))
+                    .clipShape(Circle())
                 .shadow(radius: 4, y: 2)
             }
             .accessibilityLabel(open ? "Close menu" : "Menu, \(selected.rawValue)")
