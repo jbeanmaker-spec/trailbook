@@ -74,18 +74,16 @@ struct RootView: View {
                         selected = section
                         withAnimation(.easeInOut(duration: 0.2)) { open = false }
                     } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: section.icon).frame(width: 26)
-                            Text(section.rawValue).font(Theme.heading)
-                        }
-                        .padding(.horizontal, 16)
-                        .frame(minWidth: 140, minHeight: 52, alignment: .leading)
-                        .background(section == selected ? Theme.ink : Theme.surface200)
-                        .foregroundColor(section == selected ? Theme.surface100 : Theme.ink)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Theme.line, lineWidth: 1))
-                        .shadow(radius: 3, y: 2)
+                        Image(systemName: section.icon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .frame(width: 56, height: 56)
+                            .background(section == selected ? Theme.ink : Theme.surface200)
+                            .foregroundColor(section == selected ? Theme.surface100 : Theme.ink)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Theme.line, lineWidth: 1))
+                            .shadow(radius: 3, y: 2)
                     }
+                    .accessibilityLabel(section.rawValue)
                     .accessibilityAddTraits(section == selected ? .isSelected : [])
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
