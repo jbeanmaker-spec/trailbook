@@ -1,0 +1,26 @@
+name: Trailbook
+options:
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  Trailbook:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.justin.fieldguide
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Trailbook
+        SWIFT_VERSION: "5.0"
+  TrailbookTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: Trailbook
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.justin.fieldguide.tests

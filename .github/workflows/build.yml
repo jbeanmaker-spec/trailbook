@@ -1,0 +1,25 @@
+name: Build and test
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build and test
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/^ *(.*) \([0-9A-F-]{36}\).*/\1/')
+          echo "Using simulator: $DEVICE"
+          set -o pipefail
+          xcodebuild test -project Trailbook.xcodeproj -scheme Trailbook \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            CODE_SIGNING_ALLOWED=NO | tee build.log | tail -n 200
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
