@@ -10,6 +10,9 @@ struct WeatherView: View {
     private let lat = 37.0842
     private let lon = -91.4417
 
+    // Sample trip dates, matching the Trip page.
+    private let tripDays: Set<String> = ["2026-11-13", "2026-11-14", "2026-11-15"]
+
     private var updated: String {
         guard let f = weather.fetched else { return "Not loaded yet" }
         return "Updated " + f.formatted(date: .omitted, time: .shortened)
@@ -25,9 +28,9 @@ struct WeatherView: View {
     var body: some View {
         VStack(spacing: 0) {
             HeaderBand(
-                label: "Weather · Missouri",
+                label: "Weather · Fri Nov 13 → Sun Nov 15",
                 title: "Forecast",
-                left: weather.place.isEmpty ? "Ozark Highlands" : weather.place,
+                left: weather.place.isEmpty ? "Ozark Highlands" : "Ozark Highlands · \(weather.place)",
                 right: updated
             )
             List {
@@ -47,6 +50,14 @@ struct WeatherView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack {
                                     Text(d.weekday).font(.headline)
+                                    if tripDays.contains(d.dateKey) {
+                                        Text("TRIP")
+                                            .font(.system(size: 11, weight: .bold)).tracking(1)
+                                            .padding(.horizontal, 8).padding(.vertical, 3)
+                                            .background(Theme.ember)
+                                            .foregroundColor(Color(UIColor(hex: 0x1F2A22)))
+                                            .clipShape(Capsule())
+                                    }
                                     Spacer()
                                     Text(d.day.map { "\($0.temperature)°" } ?? "--")
                                         .font(.title3.bold())
@@ -65,6 +76,11 @@ struct WeatherView: View {
             .scrollContentBackground(.hidden)
         }
         .background(Theme.surface100.ignoresSafeArea())
+        .task {
+            // Load when the page opens, unless the saved forecast is under 30 minutes old.
+            if let f = weather.fetched, Date().timeIntervalSince(f) < 1800 { return }
+            await weather.refresh(latitude: lat, longitude: lon)
+        }
         .toolbar(pushed ? .visible : .hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
     }
