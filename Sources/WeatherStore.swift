@@ -27,13 +27,17 @@ struct ForecastDay: Identifiable {
     let night: ForecastPeriod?
     var id: String { dateKey }
     var first: ForecastPeriod? { day ?? night }
-    var weekday: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        guard let d = f.date(from: dateKey) else { return dateKey }
-        f.dateFormat = "EEE"
-        return f.string(from: d).uppercased()
+    let weekday: String
+    private static let parse: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+    private static let name: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "EEE"; return f
+    }()
+    init(dateKey: String, day: ForecastPeriod?, night: ForecastPeriod?) {
+        self.dateKey = dateKey; self.day = day; self.night = night
+        if let d = Self.parse.date(from: dateKey) { weekday = Self.name.string(from: d).uppercased() }
+        else { weekday = dateKey }
     }
     var maxRain: Int { max(day?.rainChance ?? 0, night?.rainChance ?? 0) }
 }
@@ -58,7 +62,8 @@ private struct Cache: Codable {
 
 @MainActor
 final class WeatherStore: ObservableObject {
-    @Published private(set) var periods: [ForecastPeriod] = []
+    @Published private(set) var periods: [ForecastPeriod] = [] { didSet { days = Self.group(periods) } }
+    @Published private(set) var days: [ForecastDay] = []
     @Published private(set) var fetched: Date?
     @Published private(set) var place = ""
     @Published private(set) var isLoading = false
@@ -73,11 +78,11 @@ final class WeatherStore: ObservableObject {
     init() {
         if let data = try? Data(contentsOf: url),
            let c = try? JSONDecoder().decode(Cache.self, from: data) {
-            periods = c.periods; fetched = c.fetched; place = c.place
+            periods = c.periods; days = Self.group(c.periods); fetched = c.fetched; place = c.place
         }
     }
 
-    var days: [ForecastDay] {
+    private static func group(_ periods: [ForecastPeriod]) -> [ForecastDay] {
         var order: [String] = []
         var groups: [String: [ForecastPeriod]] = [:]
         for p in periods {
