@@ -31,6 +31,8 @@ struct RootView: View {
                 .tabItem { Label("Track", systemImage: "figure.hiking") }
             CompassView()
                 .tabItem { Label("Compass", systemImage: "location.north.circle") }
+            CheckinView()
+                .tabItem { Label("Check in", systemImage: "message") }
             PlaceholderView(title: "Meals", note: "The meal plan arrives in a later stage.")
                 .tabItem { Label("Meals", systemImage: "fork.knife") }
         }
