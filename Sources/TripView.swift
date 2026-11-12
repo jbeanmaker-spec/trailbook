@@ -34,7 +34,7 @@ struct TripView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HeaderBand(
-                    label: "Fri Nov 13 → Sun Nov 15 · Missouri",
+                    label: "Missouri · Fri Nov 13 → Sun Nov 15",
                     title: "Ozark Highlands",
                     left: "37.0842° N, 91.4417° W",
                     right: "1,402 ft"
