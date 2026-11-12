@@ -3,12 +3,11 @@ import SwiftUI
 /// Sample trip header with a live National Weather Service forecast. Trip planning arrives later.
 struct TripView: View {
     @EnvironmentObject private var weather: WeatherStore
-    @EnvironmentObject private var gps: LocationService
     @State private var selectedKey: String?
 
-    // Wentzville, MO until the phone has a fix.
-    private var lat: Double { gps.location?.coordinate.latitude ?? 38.8114 }
-    private var lon: Double { gps.location?.coordinate.longitude ?? -90.8529 }
+    // The sample trip's location (matches the header). Real trips set this later.
+    private let lat = 37.0842
+    private let lon = -91.4417
 
     private var status: String {
         guard let f = weather.fetched else {
@@ -37,18 +36,15 @@ struct TripView: View {
                     Text(status)
                         .font(Theme.label).tracking(1)
                         .foregroundColor(weather.failed ? Theme.amber : Theme.inkMuted)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(weather.days.prefix(7)) { d in
-                                Button { selectedKey = d.dateKey } label: {
-                                    DayTile(day: d.weekday,
-                                            high: d.day.map { "\($0.temperature)°" } ?? "--",
-                                            note: d.night.map { "Low \($0.temperature)° · \(d.maxRain)% rain" } ?? "\(d.maxRain)% rain",
-                                            selected: d.dateKey == (selectedKey ?? weather.days.first?.dateKey))
-                                }
-                                .buttonStyle(.plain)
-                                .frame(width: 140)
+                    HStack(spacing: 8) {
+                        ForEach(Array(weather.days.prefix(4))) { d in
+                            Button { selectedKey = d.dateKey } label: {
+                                DayTile(day: d.weekday,
+                                        high: d.day.map { "\($0.temperature)°" } ?? "--",
+                                        note: "\(d.maxRain)% rain",
+                                        selected: d.dateKey == (selectedKey ?? weather.days.first?.dateKey))
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                     if let d = weather.days.first(where: { $0.dateKey == (selectedKey ?? weather.days.first?.dateKey) }) {
@@ -115,7 +111,7 @@ private struct DayTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(day).font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
-            Text(high).font(.system(size: 44, weight: .bold)).foregroundColor(Theme.ink)
+            Text(high).font(.system(size: 32, weight: .bold)).foregroundColor(Theme.ink)
                 .minimumScaleFactor(0.7)
             Text(note).font(Theme.bodySm).foregroundColor(Theme.inkMuted)
         }
