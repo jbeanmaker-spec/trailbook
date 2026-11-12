@@ -35,7 +35,11 @@ private struct SavedMeals: Codable {
 @MainActor
 final class MealStore: ObservableObject {
     /// Sample trip days until trip planning is built.
-    static let tripDays = ["Fri Nov 13", "Sat Nov 14", "Sun Nov 15"]
+    /// Day labels of the current trip. Set by the app when the trip changes.
+    static var tripDays = ["Fri Nov 13", "Sat Nov 14", "Sun Nov 15"]
+    static func dayName(_ i: Int) -> String {
+        i >= 0 && i < tripDays.count ? tripDays[i] : "Day \(i + 1)"
+    }
 
     @Published private(set) var meals: [Meal] = []
     @Published private(set) var bought: Set<String> = []
@@ -116,10 +120,10 @@ final class MealStore: ObservableObject {
     // MARK: Changes
 
     @discardableResult
-    func add(name: String, day: Int, slot: MealSlot, servings: Int = 2, pack: [String] = []) -> UUID? {
+    func add(name: String, note: String = "", day: Int, slot: MealSlot, servings: Int = 2, pack: [String] = []) -> UUID? {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { return nil }
-        let m = Meal(name: n, day: day, slot: slot, servings: servings, pack: pack)
+        let m = Meal(name: n, note: note, day: day, slot: slot, servings: servings, pack: pack)
         meals.append(m)
         save()
         return m.id

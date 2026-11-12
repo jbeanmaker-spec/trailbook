@@ -58,6 +58,7 @@ struct HeaderBand: View {
     let title: String
     var left: String = ""
     var right: String = ""
+    var summit: Summit = .cotopaxi
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -74,14 +75,25 @@ struct HeaderBand: View {
             }
             .foregroundColor(Color(UIColor(hex: 0xF4EFE4)))
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
                 Color(UIColor(hex: 0x1F2A22))
-                TopoLines()
+                TopoLines(summit: summit)
             }
         )
+        .overlay(alignment: .bottomTrailing) {
+            Text(summit.caption)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .tracking(1)
+                .foregroundColor(Color(UIColor(hex: 0x9BD3A6)).opacity(0.85))
+                .padding(.trailing, 16)
+                .padding(.bottom, 6)
+                .accessibilityHidden(true)
+        }
         .clipped()
         .accessibilityElement(children: .combine)
     }
@@ -105,38 +117,120 @@ struct PlaceholderView: View {
     }
 }
 
-/// Light green, single-tone contour lines. Two hills drawn as wobbly rings.
-/// Decoration only, so it is hidden from VoiceOver and never takes taps.
+/// The ten tallest summits of Ecuador, one per page header (stylized contours, not survey data).
+enum Summit: CaseIterable {
+    case cotopaxi, chimborazo, cayambe, antisana, elAltar
+    case illinizaSur, sangay, tungurahua, carihuairazo, cotacachi
+
+    var name: String {
+        switch self {
+        case .cotopaxi: return "Cotopaxi"
+        case .chimborazo: return "Chimborazo"
+        case .cayambe: return "Cayambe"
+        case .antisana: return "Antisana"
+        case .elAltar: return "El Altar"
+        case .illinizaSur: return "Illiniza Sur"
+        case .sangay: return "Sangay"
+        case .tungurahua: return "Tungurahua"
+        case .carihuairazo: return "Carihuairazo"
+        case .cotacachi: return "Cotacachi"
+        }
+    }
+
+    var meters: Double {
+        switch self {
+        case .cotopaxi: return 5897
+        case .chimborazo: return 6263
+        case .cayambe: return 5790
+        case .antisana: return 5753
+        case .elAltar: return 5319
+        case .illinizaSur: return 5248
+        case .sangay: return 5230
+        case .tungurahua: return 5023
+        case .carihuairazo: return 5018
+        case .cotacachi: return 4944
+        }
+    }
+
+    var caption: String {
+        let feet = Int((meters * 3.28084).rounded())
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "en_US")
+        return "\(name.uppercased()) · \(f.string(from: NSNumber(value: feet)) ?? "\(feet)") ft"
+    }
+
+    fileprivate var raw: String {
+        switch self {
+        case .cotopaxi: return SummitData.cotopaxiLines
+        case .chimborazo: return SummitData.chimborazoLines
+        case .cayambe: return SummitData.cayambeLines
+        case .antisana: return SummitData.antisanaLines
+        case .elAltar: return SummitData.elAltarLines
+        case .illinizaSur: return SummitData.illinizaSurLines
+        case .sangay: return SummitData.sangayLines
+        case .tungurahua: return SummitData.tungurahuaLines
+        case .carihuairazo: return SummitData.carihuairazoLines
+        case .cotacachi: return SummitData.cotacachiLines
+        }
+    }
+
+    /// Parsed once per summit and kept, so scrolling and redraws stay cheap.
+    private static var cache: [Int: [ContourLine]] = [:]
+    var lines: [ContourLine] {
+        let key = Summit.allCases.firstIndex(of: self) ?? 0
+        if let hit = Summit.cache[key] { return hit }
+        let parsed = ContourLine.parse(raw)
+        Summit.cache[key] = parsed
+        return parsed
+    }
+}
+
+struct ContourLine {
+    let opacity: Double
+    let width: Double
+    let points: [CGPoint]
+
+    static func parse(_ text: String) -> [ContourLine] {
+        var out: [ContourLine] = []
+        for row in text.split(separator: "\n") {
+            let halves = row.split(separator: "|", maxSplits: 1)
+            guard halves.count == 2 else { continue }
+            let head = halves[0].split(separator: " ")
+            guard head.count == 2, let o = Double(head[0]), let w = Double(head[1]) else { continue }
+            var pts: [CGPoint] = []
+            for pair in halves[1].split(separator: " ") {
+                let xy = pair.split(separator: ",")
+                if xy.count == 2, let x = Double(xy[0]), let y = Double(xy[1]) {
+                    pts.append(CGPoint(x: x, y: y))
+                }
+            }
+            if pts.count > 1 { out.append(ContourLine(opacity: o, width: w, points: pts)) }
+        }
+        return out
+    }
+}
+
+/// Light green, single-tone contour lines of one summit, drawn behind a page header.
+/// The 390 x 200 drawing is scaled to cover the band and pinned to the upper right,
+/// so the summit stays in view. Decoration only: hidden from VoiceOver, never takes taps.
 struct TopoLines: View {
+    var summit: Summit = .cotopaxi
     private let green = Color(UIColor(hex: 0x9BD3A6))
 
     var body: some View {
+        let lines = summit.lines
         Canvas { ctx, size in
-            let hills: [(x: CGFloat, y: CGFloat, seed: Double)] = [
-                (size.width * 0.88, size.height * 0.15, 0),
-                (size.width * 0.10, size.height * 1.15, 2.1),
-            ]
-            for hill in hills {
-                for k in 1...14 {
-                    let radius = CGFloat(k) * 15 + 6
-                    var path = Path()
-                    let steps = 90
-                    for i in 0...steps {
-                        let a = Double(i) / Double(steps) * 2 * .pi
-                        let wobble = 1
-                            + 0.10 * sin(3 * a + Double(k) * 0.55 + hill.seed)
-                            + 0.06 * sin(5 * a - Double(k) * 0.35 + hill.seed)
-                            + 0.03 * sin(9 * a + hill.seed)
-                        let r = radius * CGFloat(wobble)
-                        let pt = CGPoint(x: hill.x + CGFloat(cos(a)) * r * 1.35,
-                                         y: hill.y + CGFloat(sin(a)) * r * 0.85)
-                        if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
-                    }
-                    path.closeSubpath()
-                    let strong = k % 4 == 0
-                    ctx.stroke(path, with: .color(green.opacity(strong ? 0.30 : 0.16)),
-                               lineWidth: strong ? 1.4 : 0.8)
+            let scale = max(size.width / 390, size.height / 200)
+            let dx = size.width - 390 * scale
+            for line in lines {
+                var path = Path()
+                for (i, p) in line.points.enumerated() {
+                    let pt = CGPoint(x: dx + p.x * scale, y: p.y * scale)
+                    if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
                 }
+                ctx.stroke(path, with: .color(green.opacity(line.opacity)),
+                           style: StrokeStyle(lineWidth: line.width, lineCap: .round, lineJoin: .round))
             }
         }
         .allowsHitTesting(false)

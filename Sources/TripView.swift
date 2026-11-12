@@ -1,19 +1,23 @@
 import SwiftUI
 
-/// Sample trip header with the live National Weather Service forecast for the trip days.
-/// Trip planning arrives later.
+/// The current trip: live forecast for its days, the drive recap, and your trips.
 struct TripView: View {
     @EnvironmentObject private var weather: WeatherStore
     @EnvironmentObject private var trip: TripProgress
+    @EnvironmentObject private var trips: TripStore
+    @State private var planning = false
 
-    // The sample trip: dates and place match the header.
-    private let tripKeys = ["2026-11-13", "2026-11-14", "2026-11-15"]
-    private let tripNames = ["FRI", "SAT", "SUN"]
-    private let lat = 37.0842
-    private let lon = -91.4417
+    private var current: Trip? { trips.current }
+    private var lat: Double { current?.latitude ?? 37.0842 }
+    private var lon: Double { current?.longitude ?? -91.4417 }
 
-    private var tripDays: [ForecastDay?] {
-        tripKeys.map { k in weather.days.first { $0.dateKey == k } }
+    private var dayTiles: [(name: String, day: ForecastDay?)] {
+        guard let t = current else { return [] }
+        return Array(t.dayKeys.prefix(4)).map { k in
+            let d = weather.days.first { $0.dateKey == k }
+            let label = d?.weekday ?? String((t.dayLabels[t.dayKeys.firstIndex(of: k) ?? 0]).prefix(3)).uppercased()
+            return (label, d)
+        }
     }
 
     private var status: String {
@@ -25,9 +29,9 @@ struct TripView: View {
     }
 
     private var watch: String? {
-        for d in tripDays.compactMap({ $0 }) where d.maxRain >= 50 {
+        for t in dayTiles { if let d = t.day, d.maxRain >= 50 {
             return "Rain likely \(d.weekday): \(d.maxRain)% chance. Trails may be muddy."
-        }
+        } }
         return nil
     }
 
@@ -35,81 +39,117 @@ struct TripView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HeaderBand(
-                    label: "Trip · Fri Nov 13 → Sun Nov 15",
-                    title: "Ozark Highlands",
-                    left: "37.0842° N, 91.4417° W",
-                    right: trip.phase == .arrived ? "Arrived" : "1,402 ft"
+                    label: "Base Camp · \(current?.rangeLabel ?? "No trip yet")",
+                    title: current?.name ?? "Plan a trip",
+                    left: current?.place ?? "Pick a place and dates",
+                    right: trip.phase == .arrived ? "Arrived" : "\(current?.nights ?? 0) nights",
+                    summit: .cotopaxi
                 )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(status)
-                            .font(Theme.label).tracking(1)
-                            .foregroundColor(weather.failed ? Theme.amber : Theme.inkMuted)
-                        NavigationLink {
-                            WeatherView(pushed: true)
-                        } label: {
-                            HStack(spacing: 12) {
-                                ForEach(0..<3, id: \.self) { i in
-                                    let d = tripDays[i]
-                                    DayTile(day: tripNames[i],
-                                            high: d?.day.map { "\($0.temperature)°" } ?? "--",
-                                            note: d.map { x in
-                                                x.night.map { "Low \($0.temperature)° · \(x.maxRain)%" } ?? "\(x.maxRain)% rain"
-                                            } ?? "No data")
+                        if current != nil {
+                            Text(status)
+                                .font(Theme.label).tracking(1)
+                                .foregroundColor(weather.failed ? Theme.amber : Theme.inkMuted)
+                            NavigationLink {
+                                WeatherView(pushed: true)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    ForEach(0..<dayTiles.count, id: \.self) { i in
+                                        let t = dayTiles[i]
+                                        DayTile(day: t.name,
+                                                high: t.day?.day.map { "\($0.temperature)°" } ?? "--",
+                                                note: t.day.map { x in
+                                                    x.night.map { "Low \($0.temperature)° · \(x.maxRain)%" } ?? "\(x.maxRain)% rain"
+                                                } ?? "No data")
+                                    }
                                 }
                             }
-                        }
-                        .buttonStyle(.plain)
-                        if let w = watch {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle").foregroundColor(Theme.amber)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("WATCH").font(Theme.label).tracking(1).foregroundColor(Theme.amber)
-                                    Text(w).font(Theme.bodySm).foregroundColor(Theme.ink)
+                            .buttonStyle(.plain)
+                            if let w = watch {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: "exclamationmark.triangle").foregroundColor(Theme.amber)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("WATCH").font(Theme.label).tracking(1).foregroundColor(Theme.amber)
+                                        Text(w).font(Theme.bodySm).foregroundColor(Theme.ink)
+                                    }
                                 }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Theme.amberBg)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
                             }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Theme.amberBg)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+                            Text("Tap the forecast for every day, hour by hour.")
+                                .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                            DriveRecap()
                         }
-                        Text("Tap the forecast for every day.")
-                            .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
-                        DriveRecap()
+                        YourTrips(planning: $planning)
                     }
                     .padding(16)
                 }
             }
             .background(Theme.surface100.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
-            .task {
-                if let f = weather.fetched, Date().timeIntervalSince(f) < 1800 { return }
-                await weather.refresh(latitude: lat, longitude: lon)
+            .task(id: current?.id) {
+                if weather.needsRefresh(latitude: lat, longitude: lon) {
+                    await weather.refresh(latitude: lat, longitude: lon)
+                }
+            }
+            .sheet(isPresented: $planning) {
+                PlanTripView().presentationDetents([.large])
             }
         }
     }
 }
 
-private struct DayTile: View {
-    let day: String
-    let high: String
-    let note: String
+private struct YourTrips: View {
+    @EnvironmentObject private var trips: TripStore
+    @Binding var planning: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(day).font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
-            Text(high)
-                .font(.system(size: 34, weight: .bold)).foregroundColor(Theme.ink)
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(note).font(Theme.bodySm).foregroundColor(Theme.inkMuted)
-                .lineLimit(2).minimumScaleFactor(0.8)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("YOUR TRIPS").font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
+            ForEach(trips.trips) { t in
+                Button { trips.select(t.id) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: t.id == trips.current?.id ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(t.id == trips.current?.id ? Theme.forest : Theme.inkMuted)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.name).font(Theme.heading).foregroundColor(Theme.ink)
+                            Text("\(t.rangeLabel) · \(t.place)")
+                                .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: Theme.tapMin, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button(role: .destructive) { trips.delete(t.id) } label: {
+                        Label("Delete trip", systemImage: "trash")
+                    }
+                }
+            }
+            if !trips.trips.isEmpty {
+                Text("Press and hold a trip to delete it.")
+                    .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+            }
+            Button { planning = true } label: {
+                Label("Plan a trip", systemImage: "plus")
+                    .font(Theme.heading)
+                    .frame(maxWidth: .infinity, minHeight: Theme.tapMin)
+                    .background(Theme.forest)
+                    .foregroundColor(Theme.onForest)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+            }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.surface200)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
         .overlay(RoundedRectangle(cornerRadius: Theme.radiusLg).stroke(Theme.line, lineWidth: 1))
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -192,3 +232,27 @@ private struct DriveRecap: View {
         }
     }
 }
+
+private struct DayTile: View {
+    let day: String
+    let high: String
+    let note: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(day).font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
+            Text(high)
+                .font(.system(size: 34, weight: .bold)).foregroundColor(Theme.ink)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text(note).font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                .lineLimit(2).minimumScaleFactor(0.8)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
+        .background(Theme.surface200)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radiusLg).stroke(Theme.line, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+

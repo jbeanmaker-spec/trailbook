@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MealsView: View {
     @EnvironmentObject private var meals: MealStore
+    @EnvironmentObject private var trips: TripStore
     @State private var addTarget: AddTarget?
 
     struct AddTarget: Identifiable {
@@ -14,10 +15,11 @@ struct MealsView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HeaderBand(
-                    label: "Meals · 3 days · 2 nights",
+                    label: "Meals · \(MealStore.tripDays.count) days · \(trips.current?.nights ?? 0) nights",
                     title: "Meal plan",
                     left: "\(meals.meals.count) meals planned",
-                    right: "Cook on a stove"
+                    right: "Cook on a stove",
+                    summit: .carihuairazo
                 )
                 if let notice = meals.notice {
                     Text(notice)
@@ -54,7 +56,7 @@ struct MealsView: View {
                                     }
                                 }
                             } header: {
-                                SlotHeader(day: MealStore.tripDays[day], slot: slot) {
+                                SlotHeader(day: MealStore.dayName(day), slot: slot) {
                                     addTarget = AddTarget(day: day, slot: slot)
                                 }
                             }
@@ -69,8 +71,7 @@ struct MealsView: View {
             .animation(.easeInOut(duration: 0.2), value: meals.lastDeleted)
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $addTarget) { t in
-                AddMealSheet(day: t.day, slot: t.slot)
-                    .presentationDetents([.large])
+                MealAddSheet(day: t.day, slot: t.slot)
             }
         }
     }
@@ -129,58 +130,6 @@ private struct MealRow: View {
     }
 }
 
-// MARK: Add a meal
-
-private struct AddMealSheet: View {
-    let day: Int
-    let slot: MealSlot
-    @EnvironmentObject private var meals: MealStore
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var servings = 2
-    @FocusState private var focused: Bool
-
-    private let saved = [
-        "Foil-pack potatoes and sausage", "Instant ramen with egg", "Couscous with tuna",
-        "Oatmeal with raisins", "Peanut butter wraps",
-    ]
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Meal") {
-                    TextField("Meal name", text: $name)
-                        .focused($focused).frame(minHeight: Theme.tapMin)
-                }
-                Section("Saved meals") {
-                    ForEach(saved, id: \.self) { s in
-                        Button { name = s } label: {
-                            Text(s).frame(maxWidth: .infinity, minHeight: Theme.tapMin, alignment: .leading)
-                        }
-                    }
-                }
-                Section {
-                    Stepper("Servings: \(servings)", value: $servings, in: 1...20)
-                        .frame(minHeight: Theme.tapMin)
-                }
-            }
-            .navigationTitle("Add to \(MealStore.tripDays[day]) \(slot.title.lowercased())")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        meals.add(name: name, day: day, slot: slot, servings: servings)
-                        dismiss()
-                    }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-            .onAppear { focused = true }
-        }
-    }
-}
-
 // MARK: Meal detail
 
 struct MealDetailView: View {
@@ -192,7 +141,7 @@ struct MealDetailView: View {
         if let meal = meals.meal(mealID) {
             List {
                 Section {
-                    Text("\(MealStore.tripDays[meal.day]) · \(meal.slot.title)")
+                    Text("\(MealStore.dayName(meal.day)) · \(meal.slot.title)")
                         .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
                     Stepper("Servings: \(meal.servings)",
                             value: Binding(get: { meal.servings }, set: { meals.setServings($0, for: mealID) }),
@@ -322,7 +271,7 @@ struct SendToMealSheet: View {
                 Section("Send “\(itemTitle)” to") {
                     Picker("Day", selection: $day) {
                         ForEach(MealStore.tripDays.indices, id: \.self) { i in
-                            Text(String(MealStore.tripDays[i].prefix(3))).tag(i)
+                            Text(String(MealStore.dayName(i).prefix(3))).tag(i)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -331,7 +280,7 @@ struct SendToMealSheet: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                Section("\(MealStore.tripDays[day]) \(slot.title.lowercased())") {
+                Section("\(MealStore.dayName(day)) \(slot.title.lowercased())") {
                     ForEach(meals.meals(day: day, slot: slot)) { m in
                         Button {
                             meals.addPack(itemTitle, to: m.id)

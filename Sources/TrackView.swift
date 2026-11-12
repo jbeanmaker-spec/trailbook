@@ -9,7 +9,7 @@ struct TrackView: View {
         VStack(spacing: 0) {
             HeaderBand(label: "Track · works with no signal",
                        title: store.recording == nil ? "Ready" : "Recording",
-                       left: headerLeft, right: "")
+                       left: headerLeft, right: "", summit: .cotacachi)
             if let notice = store.notice {
                 Text(notice)
                     .font(Theme.bodySm).foregroundColor(Theme.ink)

@@ -78,7 +78,8 @@ final class TripProgress: ObservableObject {
     }
 
     /// Called for every GPS fix.
-    func update(_ loc: CLLocation) {
+    func update(_ loc: CLLocation, destination dest: CLLocation? = nil) {
+        let destination = dest ?? Self.destination
         guard phase == .driving, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 100 else { return }
         if let prev = last {
             let step = loc.distance(from: prev)
@@ -88,10 +89,10 @@ final class TripProgress: ObservableObject {
         last = loc
         let driven = Self.miles(meters)
         if driven != milesDriven { milesDriven = driven }
-        let toGo = Self.miles(loc.distance(from: Self.destination))
+        let toGo = Self.miles(loc.distance(from: destination))
         if toGo != milesToGo { milesToGo = toGo }
         updates += 1
-        if loc.distance(from: Self.destination) <= Self.arrivalRadius {
+        if loc.distance(from: destination) <= Self.arrivalRadius {
             markArrived()
         } else if updates % 20 == 0 {
             save()

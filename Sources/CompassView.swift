@@ -53,7 +53,7 @@ struct CompassView: View {
     var body: some View {
         VStack(spacing: 0) {
             HeaderBand(label: "Compass · works with no signal", title: headingText,
-                       left: "Magnetic north", right: "")
+                       left: "Magnetic north", right: "", summit: .illinizaSur)
             Spacer(minLength: 12)
             Dial(heading: model.heading ?? 0)
                 .frame(width: 300, height: 300)

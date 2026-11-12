@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PrepView: View {
     @EnvironmentObject private var store: PrepStore
+    @EnvironmentObject private var trips: TripStore
     @State private var addTarget: PrepGroup?
     @State private var assignTarget: PrepItem?
     @State private var mealTarget: PrepItem?
@@ -9,10 +10,11 @@ struct PrepView: View {
     var body: some View {
         VStack(spacing: 0) {
             HeaderBand(
-                label: "Prep · Fri Nov 13 → Sun Nov 15",
+                label: "Prep · \(trips.current?.rangeLabel ?? "No trip")",
                 title: "Pack list",
                 left: "\(store.packedCount) of \(store.totalCount) packed",
-                right: "2 nights"
+                right: "\(trips.current?.nights ?? 0) nights",
+                summit: .cayambe
             )
             if let notice = store.notice {
                 Text(notice)
@@ -71,10 +73,9 @@ struct PrepView: View {
         .overlay(alignment: .bottom) { undoBar }
         .animation(.easeInOut(duration: 0.2), value: store.lastDeleted)
         .sheet(item: $addTarget) { group in
-            AddItemSheet(groupTitle: group.title) { title in
+            PrepAddSheet(groupTitle: group.title) { title in
                 store.add(title: title, to: group.id)
             }
-            .presentationDetents([.medium])
         }
         .sheet(item: $mealTarget) { item in
             SendToMealSheet(itemTitle: item.title)
@@ -165,42 +166,6 @@ private struct PrepRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(item.packed ? .isSelected : [])
         .accessibilityHint("Double tap to mark as \(item.packed ? "not packed" : "packed")")
-    }
-}
-
-private struct AddItemSheet: View {
-    let groupTitle: String
-    let onAdd: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Item name", text: $text)
-                    .focused($focused)
-                    .submitLabel(.done)
-                    .onSubmit(add)
-                    .frame(minHeight: Theme.tapMin)
-            }
-            .navigationTitle("Add to \(groupTitle)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add", action: add)
-                        .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-            .onAppear { focused = true }
-        }
-    }
-
-    private func add() {
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        onAdd(text)
-        dismiss()
     }
 }
 
