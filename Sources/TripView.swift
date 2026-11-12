@@ -4,6 +4,7 @@ import SwiftUI
 /// Trip planning arrives later.
 struct TripView: View {
     @EnvironmentObject private var weather: WeatherStore
+    @EnvironmentObject private var trip: TripProgress
 
     // The sample trip: dates and place match the header.
     private let tripKeys = ["2026-11-13", "2026-11-14", "2026-11-15"]
@@ -37,7 +38,7 @@ struct TripView: View {
                     label: "Trip · Fri Nov 13 → Sun Nov 15",
                     title: "Ozark Highlands",
                     left: "37.0842° N, 91.4417° W",
-                    right: "1,402 ft"
+                    right: trip.phase == .arrived ? "Arrived" : "1,402 ft"
                 )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
@@ -74,6 +75,7 @@ struct TripView: View {
                         }
                         Text("Tap the forecast for every day.")
                             .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                        DriveRecap()
                     }
                     .padding(16)
                 }
@@ -108,5 +110,85 @@ private struct DayTile: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
         .overlay(RoundedRectangle(cornerRadius: Theme.radiusLg).stroke(Theme.line, lineWidth: 1))
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct DriveRecap: View {
+    @EnvironmentObject private var trip: TripProgress
+
+    private func time(_ d: Date?) -> String {
+        d?.formatted(date: .omitted, time: .shortened) ?? "--"
+    }
+
+    private func duration(from: Date?, to: Date) -> String {
+        guard let from else { return "--" }
+        let mins = max(0, Int(to.timeIntervalSince(from) / 60))
+        return mins >= 60 ? "\(mins / 60) h \(mins % 60) min" : "\(mins) min"
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label).font(Theme.body).foregroundColor(Theme.inkMuted)
+            Spacer()
+            Text(value).font(Theme.heading).foregroundColor(Theme.ink)
+        }
+        .frame(minHeight: 36)
+        .accessibilityElement(children: .combine)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(Theme.label).tracking(1)
+                .foregroundColor(trip.phase == .arrived ? Theme.forest : Theme.inkMuted)
+            switch trip.phase {
+            case .ready:
+                Text("Start the drive when you leave. The app times it, counts the miles and tells you when you arrive.")
+                    .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                action("Start drive", systemImage: "car.fill", prominent: true) { trip.start() }
+            case .driving:
+                TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                    row("Drive time", duration(from: trip.departed, to: ctx.date))
+                }
+                row("Departed", time(trip.departed))
+                row("Driven", String(format: "%.1f mi", trip.milesDriven))
+                row("To go (straight line)", trip.milesToGo.map { String(format: "%.1f mi", $0) } ?? "Waiting for GPS")
+                action("I've arrived", systemImage: "checkmark.circle", prominent: true) { trip.markArrived() }
+                action("Cancel drive", systemImage: "xmark", prominent: false) { trip.reset() }
+            case .arrived:
+                Text("Arrived at \(time(trip.arrivedAt))")
+                    .font(.system(size: 26, weight: .heavy)).foregroundColor(Theme.forest)
+                row("Total drive time", duration(from: trip.departed, to: trip.arrivedAt ?? Date()))
+                row("Departed", time(trip.departed))
+                row("Distance driven", String(format: "%.1f mi", trip.milesDriven))
+                action("Reset", systemImage: "arrow.counterclockwise", prominent: false) { trip.reset() }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface200)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radiusLg).stroke(Theme.line, lineWidth: 1))
+    }
+
+    private var title: String {
+        switch trip.phase {
+        case .ready: return "DRIVE RECAP"
+        case .driving: return "DRIVING"
+        case .arrived: return "ARRIVED"
+        }
+    }
+
+    @ViewBuilder private func action(_ text: String, systemImage: String, prominent: Bool,
+                                     _ run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            Label(text, systemImage: systemImage)
+                .font(Theme.heading)
+                .frame(maxWidth: .infinity, minHeight: Theme.tapMin)
+                .background(prominent ? Theme.ember : Color.clear)
+                .foregroundColor(prominent ? Color(UIColor(hex: 0x1F2A22)) : Theme.ink)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusMd)
+                    .stroke(prominent ? Color.clear : Theme.inkMuted, lineWidth: 1))
+        }
     }
 }

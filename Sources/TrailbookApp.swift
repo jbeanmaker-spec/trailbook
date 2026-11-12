@@ -7,6 +7,7 @@ struct TrailbookApp: App {
     @StateObject private var gps = LocationService()
     @StateObject private var weather = WeatherStore()
     @StateObject private var meals = MealStore()
+    @StateObject private var trip = TripProgress()
 
     var body: some Scene {
         WindowGroup {
@@ -16,6 +17,7 @@ struct TrailbookApp: App {
                 .environmentObject(gps)
                 .environmentObject(weather)
                 .environmentObject(meals)
+                .environmentObject(trip)
                 .tint(Theme.forest)
         }
     }
@@ -26,7 +28,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var icon: String {
         switch self {
-        case .trip: return "flag"
+        case .trip: return "tent"
         case .weather: return "cloud.sun"
         case .prep: return "checkmark.square"
         case .track: return "figure.hiking"
@@ -39,6 +41,7 @@ enum AppSection: String, CaseIterable, Identifiable {
 struct RootView: View {
     @EnvironmentObject private var tracks: TrackStore
     @EnvironmentObject private var gps: LocationService
+    @EnvironmentObject private var trip: TripProgress
     @State private var selected: AppSection = .trip
     @State private var open = false
 
@@ -54,7 +57,12 @@ struct RootView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 64) }
         .overlay(alignment: .bottomLeading) { menu }
-        .onAppear { gps.onLocation = { tracks.add($0) } }
+        .onAppear {
+            gps.onLocation = { tracks.add($0); trip.update($0) }
+            trip.onStart = { gps.start() }
+            // A drive that was running when the app closed keeps listening.
+            if trip.phase == .driving { gps.start() }
+        }
     }
 
     @ViewBuilder private func content(for section: AppSection) -> some View {
