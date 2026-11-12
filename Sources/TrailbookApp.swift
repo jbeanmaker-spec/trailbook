@@ -5,6 +5,7 @@ struct TrailbookApp: App {
     @StateObject private var prep = PrepStore()
     @StateObject private var tracks = TrackStore()
     @StateObject private var gps = LocationService()
+    @StateObject private var weather = WeatherStore()
 
     var body: some Scene {
         WindowGroup {
@@ -12,6 +13,7 @@ struct TrailbookApp: App {
                 .environmentObject(prep)
                 .environmentObject(tracks)
                 .environmentObject(gps)
+                .environmentObject(weather)
                 .tint(Theme.forest)
         }
     }
