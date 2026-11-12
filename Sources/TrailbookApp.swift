@@ -69,44 +69,38 @@ struct RootView: View {
     private var menu: some View {
         VStack(alignment: .leading, spacing: 8) {
             if open {
-                VStack(spacing: 0) {
-                    ForEach(AppSection.allCases.reversed()) { section in
-                        Button {
-                            selected = section
-                            withAnimation(.easeInOut(duration: 0.2)) { open = false }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: section.icon).frame(width: 28)
-                                Text(section.rawValue).font(Theme.heading)
-                                Spacer(minLength: 16)
-                                if section == selected { Image(systemName: "checkmark") }
-                            }
-                            .padding(.horizontal, 16)
-                            .frame(minWidth: 180, minHeight: Theme.tapMin, alignment: .leading)
-                            .foregroundColor(section == selected ? Theme.forest : Theme.ink)
-                            .contentShape(Rectangle())
+                ForEach(AppSection.allCases.reversed()) { section in
+                    Button {
+                        selected = section
+                        withAnimation(.easeInOut(duration: 0.2)) { open = false }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: section.icon).frame(width: 26)
+                            Text(section.rawValue).font(Theme.heading)
                         }
-                        .accessibilityAddTraits(section == selected ? .isSelected : [])
+                        .padding(.horizontal, 16)
+                        .frame(minWidth: 140, minHeight: 52, alignment: .leading)
+                        .background(section == selected ? Theme.ink : Theme.surface200)
+                        .foregroundColor(section == selected ? Theme.surface100 : Theme.ink)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Theme.line, lineWidth: 1))
+                        .shadow(radius: 3, y: 2)
                     }
+                    .accessibilityAddTraits(section == selected ? .isSelected : [])
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .background(Theme.surface200)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
-                .overlay(RoundedRectangle(cornerRadius: Theme.radiusLg).stroke(Theme.line, lineWidth: 1))
-                .shadow(radius: 8, y: 2)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { open.toggle() }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: open ? "chevron.down" : selected.icon)
-                    Text(selected.rawValue).font(Theme.heading)
-                    if !open { Image(systemName: "chevron.up").font(.footnote.weight(.bold)) }
+                    Image(systemName: open ? "xmark" : selected.icon)
+                    Text(open ? "Close" : selected.rawValue).font(Theme.heading)
                 }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 52)
-                .background(Theme.forest)
-                .foregroundColor(Theme.onForest)
+                .padding(.horizontal, 18)
+                .frame(minHeight: 56)
+                .background(Theme.ember)
+                .foregroundColor(Color(UIColor(hex: 0x1F2A22)))
                 .clipShape(Capsule())
                 .shadow(radius: 4, y: 2)
             }
