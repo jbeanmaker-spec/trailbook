@@ -17,8 +17,7 @@ struct WeatherView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     Text(status).font(.footnote).foregroundStyle(weather.failed ? Theme.amber : Theme.inkMuted)
                     Button(weather.isLoading ? "Refreshing…" : "Refresh forecast") {
@@ -49,7 +48,6 @@ struct WeatherView: View {
                 }
             }
             .navigationTitle(weather.place.isEmpty ? "Weather" : weather.place)
-        }
     }
 }
 

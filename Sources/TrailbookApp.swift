@@ -35,8 +35,6 @@ struct RootView: View {
                 .tabItem { Label("Track", systemImage: "figure.hiking") }
             CompassView()
                 .tabItem { Label("Compass", systemImage: "location.north.circle") }
-            WeatherView()
-                .tabItem { Label("Weather", systemImage: "cloud.sun") }
             MealsView()
                 .tabItem { Label("Meals", systemImage: "fork.knife") }
         }

@@ -3,6 +3,7 @@ import SwiftUI
 /// Stage 1: a fixed sample trip. Planning a trip and live weather arrive in later stages.
 struct TripView: View {
     var body: some View {
+        NavigationStack {
         VStack(spacing: 0) {
             HeaderBand(
                 label: "Fri Nov 13 → Sun Nov 15 · Missouri",
@@ -33,11 +34,24 @@ struct TripView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.amberBg)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+                    NavigationLink {
+                        WeatherView()
+                    } label: {
+                        Label("Full forecast (live)", systemImage: "cloud.sun")
+                            .font(Theme.heading)
+                            .frame(maxWidth: .infinity, minHeight: Theme.tapMin, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .background(Theme.surface200)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMd))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(16)
             }
         }
         .background(Theme.surface100.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        }
     }
 }
 
