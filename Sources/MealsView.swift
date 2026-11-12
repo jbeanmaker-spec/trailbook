@@ -239,8 +239,22 @@ struct MealDetailView: View {
 
 struct ShoppingView: View {
     @EnvironmentObject private var meals: MealStore
+    @State private var newItem = ""
     var body: some View {
         List {
+            Section {
+                HStack {
+                    TextField("Add an item", text: $newItem)
+                        .submitLabel(.done).onSubmit(addItem)
+                        .frame(minHeight: Theme.tapMin)
+                    Button(action: addItem) {
+                        Label("Add", systemImage: "plus")
+                            .font(Theme.bodySm.weight(.bold))
+                            .frame(minHeight: Theme.tapMin)
+                    }
+                    .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
             if meals.shopping.isEmpty {
                 Text("Items you add to meals show up here.")
                     .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
@@ -254,7 +268,7 @@ struct ShoppingView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(line.item).font(Theme.body).foregroundColor(Theme.ink)
                                 .strikethrough(meals.isBought(line), color: Theme.inkMuted)
-                            Text(line.usedIn.joined(separator: ", "))
+                            Text(line.isExtra ? "Added by you" : line.usedIn.joined(separator: ", "))
                                 .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
                         }
                         Spacer(minLength: 0)
@@ -263,10 +277,23 @@ struct ShoppingView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    if line.isExtra {
+                        Button(role: .destructive) { meals.removeExtra(line.item) } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(Theme.redOrange)
+                    }
+                }
             }
         }
         .navigationTitle("Shopping list")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func addItem() {
+        meals.addExtra(newItem)
+        newItem = ""
     }
 }
 

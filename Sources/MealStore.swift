@@ -20,12 +20,14 @@ struct Meal: Identifiable, Codable, Equatable {
 struct ShoppingLine: Identifiable, Equatable {
     let item: String
     let usedIn: [String]
+    var isExtra = false
     var id: String { item.lowercased() }
 }
 
 private struct SavedMeals: Codable {
     var meals: [Meal]
     var bought: [String]
+    var extras: [String]? = nil
 }
 
 /// Holds the meal plan and saves it to the phone after every change.
@@ -37,6 +39,8 @@ final class MealStore: ObservableObject {
 
     @Published private(set) var meals: [Meal] = []
     @Published private(set) var bought: Set<String> = []
+    /// Items added to the shopping list by hand, not tied to a meal.
+    @Published private(set) var extras: [String] = []
     @Published private(set) var lastDeleted: Meal?
     @Published private(set) var notice: String?
 
@@ -73,7 +77,23 @@ final class MealStore: ObservableObject {
                 if !(users[k] ?? []).contains(m.name) { users[k, default: []].append(m.name) }
             }
         }
-        return order.map { ShoppingLine(item: names[$0] ?? $0, usedIn: users[$0] ?? []) }
+        var lines = order.map { ShoppingLine(item: names[$0] ?? $0, usedIn: users[$0] ?? []) }
+        for e in extras where !lines.contains(where: { $0.id == e.lowercased() }) {
+            lines.append(ShoppingLine(item: e, usedIn: [], isExtra: true))
+        }
+        return lines
+    }
+
+    func addExtra(_ item: String) {
+        let t = item.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, !extras.contains(where: { $0.lowercased() == t.lowercased() }) else { return }
+        extras.append(t)
+        save()
+    }
+
+    func removeExtra(_ item: String) {
+        extras.removeAll { $0 == item }
+        save()
     }
 
     func isBought(_ line: ShoppingLine) -> Bool { bought.contains(line.id) }
@@ -149,6 +169,7 @@ final class MealStore: ObservableObject {
             let saved = try JSONDecoder().decode(SavedMeals.self, from: Data(contentsOf: fileURL))
             meals = saved.meals
             bought = Set(saved.bought)
+            extras = saved.extras ?? []
         } catch {
             let stamp = Int(Date().timeIntervalSince1970)
             let backup = fileURL.deletingLastPathComponent()
@@ -164,7 +185,7 @@ final class MealStore: ObservableObject {
         do {
             let dir = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(SavedMeals(meals: meals, bought: Array(bought)))
+            let data = try JSONEncoder().encode(SavedMeals(meals: meals, bought: Array(bought), extras: extras))
             try data.write(to: fileURL, options: [.atomic])
         } catch {
             notice = "Your last change could not be saved to this phone. Free some storage, then try again."
