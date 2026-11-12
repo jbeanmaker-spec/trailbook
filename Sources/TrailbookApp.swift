@@ -6,6 +6,7 @@ struct TrailbookApp: App {
     @StateObject private var tracks = TrackStore()
     @StateObject private var gps = LocationService()
     @StateObject private var weather = WeatherStore()
+    @StateObject private var meals = MealStore()
 
     var body: some Scene {
         WindowGroup {
@@ -14,6 +15,7 @@ struct TrailbookApp: App {
                 .environmentObject(tracks)
                 .environmentObject(gps)
                 .environmentObject(weather)
+                .environmentObject(meals)
                 .tint(Theme.forest)
         }
     }
@@ -35,7 +37,7 @@ struct RootView: View {
                 .tabItem { Label("Compass", systemImage: "location.north.circle") }
             WeatherView()
                 .tabItem { Label("Weather", systemImage: "cloud.sun") }
-            PlaceholderView(title: "Meals", note: "The meal plan arrives in a later stage.")
+            MealsView()
                 .tabItem { Label("Meals", systemImage: "fork.knife") }
         }
         .onAppear { gps.onLocation = { tracks.add($0) } }

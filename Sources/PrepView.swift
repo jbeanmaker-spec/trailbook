@@ -4,6 +4,7 @@ struct PrepView: View {
     @EnvironmentObject private var store: PrepStore
     @State private var addTarget: PrepGroup?
     @State private var assignTarget: PrepItem?
+    @State private var mealTarget: PrepItem?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +23,7 @@ struct PrepView: View {
                     .background(Theme.amberBg)
             }
             List {
-                Text("Swipe a row right to delete it, left to assign it to someone else.")
+                Text("Swipe a row right to delete it, left to assign it. Food items also have To meal.")
                     .font(Theme.bodySm)
                     .foregroundColor(Theme.inkMuted)
                     .listRowBackground(Color.clear)
@@ -48,6 +49,14 @@ struct PrepView: View {
                                         Label("Assign", systemImage: "person.badge.plus")
                                     }
                                     .tint(Theme.sky)
+                                    if group.title == "Food" {
+                                        Button {
+                                            mealTarget = item
+                                        } label: {
+                                            Label("To meal", systemImage: "fork.knife")
+                                        }
+                                        .tint(Theme.ember)
+                                    }
                                 }
                         }
                     } header: {
@@ -66,6 +75,10 @@ struct PrepView: View {
                 store.add(title: title, to: group.id)
             }
             .presentationDetents([.medium])
+        }
+        .sheet(item: $mealTarget) { item in
+            SendToMealSheet(itemTitle: item.title)
+                .presentationDetents([.large])
         }
         .sheet(item: $assignTarget) { item in
             AssignSheet(itemTitle: item.title, current: item.assignee) { name in
