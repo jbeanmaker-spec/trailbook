@@ -15,6 +15,7 @@ enum Theme {
     static let sky = Color(light: 0x697A95, dark: 0x86BDE6)
     static let amber = Color(light: 0x8A5A00, dark: 0xF2BE55)
     static let amberBg = Color(light: 0xFFF4DC, dark: 0x2A2312)
+    static let redOrange = Color(light: 0xE8450F, dark: 0xFF7043)
     static let danger = Color(light: 0xFF0D00, dark: 0xFF8F85)
 
     /// Minimum touch target from the design system.

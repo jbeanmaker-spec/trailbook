@@ -32,6 +32,7 @@ struct TrackView: View {
                                     Button(role: .destructive) { store.delete(track.id) } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
+                                    .tint(Theme.redOrange)
                                 }
                         }
                     }
