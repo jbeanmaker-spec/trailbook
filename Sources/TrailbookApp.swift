@@ -22,11 +22,12 @@ struct TrailbookApp: App {
 }
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case trip = "Trip", prep = "Prep", track = "Track", compass = "Compass", meals = "Meals"
+    case trip = "Trip", weather = "Weather", prep = "Prep", track = "Track", compass = "Compass", meals = "Meals"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .trip: return "flag"
+        case .weather: return "cloud.sun"
         case .prep: return "checkmark.square"
         case .track: return "figure.hiking"
         case .compass: return "location.north.circle"
@@ -59,6 +60,7 @@ struct RootView: View {
     @ViewBuilder private func content(for section: AppSection) -> some View {
         switch section {
         case .trip: TripView()
+        case .weather: NavigationStack { WeatherView() }
         case .prep: PrepView()
         case .track: TrackView()
         case .compass: CompassView()
