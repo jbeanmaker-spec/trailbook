@@ -76,7 +76,13 @@ struct HeaderBand: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(UIColor(hex: 0x1F2A22)))
+        .background(
+            ZStack {
+                Color(UIColor(hex: 0x1F2A22))
+                TopoLines()
+            }
+        )
+        .clipped()
         .accessibilityElement(children: .combine)
     }
 }
@@ -96,5 +102,44 @@ struct PlaceholderView: View {
             Spacer()
         }
         .background(Theme.surface100.ignoresSafeArea())
+    }
+}
+
+/// Light green, single-tone contour lines. Two hills drawn as wobbly rings.
+/// Decoration only, so it is hidden from VoiceOver and never takes taps.
+struct TopoLines: View {
+    private let green = Color(UIColor(hex: 0x9BD3A6))
+
+    var body: some View {
+        Canvas { ctx, size in
+            let hills: [(x: CGFloat, y: CGFloat, seed: Double)] = [
+                (size.width * 0.88, size.height * 0.15, 0),
+                (size.width * 0.10, size.height * 1.15, 2.1),
+            ]
+            for hill in hills {
+                for k in 1...14 {
+                    let radius = CGFloat(k) * 15 + 6
+                    var path = Path()
+                    let steps = 90
+                    for i in 0...steps {
+                        let a = Double(i) / Double(steps) * 2 * .pi
+                        let wobble = 1
+                            + 0.10 * sin(3 * a + Double(k) * 0.55 + hill.seed)
+                            + 0.06 * sin(5 * a - Double(k) * 0.35 + hill.seed)
+                            + 0.03 * sin(9 * a + hill.seed)
+                        let r = radius * CGFloat(wobble)
+                        let pt = CGPoint(x: hill.x + CGFloat(cos(a)) * r * 1.35,
+                                         y: hill.y + CGFloat(sin(a)) * r * 0.85)
+                        if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
+                    }
+                    path.closeSubpath()
+                    let strong = k % 4 == 0
+                    ctx.stroke(path, with: .color(green.opacity(strong ? 0.30 : 0.16)),
+                               lineWidth: strong ? 1.4 : 0.8)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
