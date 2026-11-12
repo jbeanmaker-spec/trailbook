@@ -4,7 +4,7 @@ import SwiftUI
 struct TripView: View {
     @EnvironmentObject private var weather: WeatherStore
     @EnvironmentObject private var gps: LocationService
-    @State private var detail: ForecastDay?
+    @State private var selectedKey: String?
 
     // Wentzville, MO until the phone has a fix.
     private var lat: Double { gps.location?.coordinate.latitude ?? 38.8114 }
@@ -40,15 +40,19 @@ struct TripView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(weather.days.prefix(7)) { d in
-                                Button { detail = d } label: {
+                                Button { selectedKey = d.dateKey } label: {
                                     DayTile(day: d.weekday,
                                             high: d.day.map { "\($0.temperature)°" } ?? "--",
-                                            note: d.night.map { "Low \($0.temperature)° · \(d.maxRain)% rain" } ?? "\(d.maxRain)% rain")
+                                            note: d.night.map { "Low \($0.temperature)° · \(d.maxRain)% rain" } ?? "\(d.maxRain)% rain",
+                                            selected: d.dateKey == (selectedKey ?? weather.days.first?.dateKey))
                                 }
                                 .buttonStyle(.plain)
                                 .frame(width: 140)
                             }
                         }
+                    }
+                    if let d = weather.days.first(where: { $0.dateKey == (selectedKey ?? weather.days.first?.dateKey) }) {
+                        DayDetail(day: d)
                     }
                     if let w = watch {
                         HStack(alignment: .top, spacing: 12) {
@@ -77,37 +81,27 @@ struct TripView: View {
         }
         .background(Theme.surface100.ignoresSafeArea())
         .task { await weather.refresh(latitude: lat, longitude: lon) }
-        .sheet(item: $detail) { d in DayDetail(day: d) }
     }
 }
 
 private struct DayDetail: View {
     let day: ForecastDay
-    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach([day.day, day.night].compactMap { $0 }) { p in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(p.name.uppercased()).font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
-                            Text("\(p.temperature)°\(p.temperatureUnit)").font(Theme.display).foregroundColor(Theme.ink)
-                            Text(p.shortForecast).font(Theme.heading).foregroundColor(Theme.ink)
-                            Text("Rain \(p.rainChance)% · Wind \(p.windDirection) \(p.windSpeed)")
-                                .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
-                            Text(p.detailedForecast).font(Theme.body).foregroundColor(Theme.ink)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Theme.surface200)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach([day.day, day.night].compactMap { $0 }) { p in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(p.name.uppercased()).font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
+                    Text("\(p.temperature)°\(p.temperatureUnit)").font(Theme.display).foregroundColor(Theme.ink)
+                    Text(p.shortForecast).font(Theme.heading).foregroundColor(Theme.ink)
+                    Text("Rain \(p.rainChance)% · Wind \(p.windDirection) \(p.windSpeed)")
+                        .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
+                    Text(p.detailedForecast).font(Theme.body).foregroundColor(Theme.ink)
                 }
-                .padding(16)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.surface200)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLg))
             }
-            .background(Theme.surface100)
-            .navigationTitle(day.weekday)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
 }
