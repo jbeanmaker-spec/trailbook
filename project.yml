@@ -13,6 +13,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_CFBundleDisplayName: Trailbook
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Trailbook uses your location to show where you are and to record your trail, even with no signal.
+        INFOPLIST_KEY_UIBackgroundModes: location
         SWIFT_VERSION: "5.0"
   TrailbookTests:
     type: bundle.unit-test
