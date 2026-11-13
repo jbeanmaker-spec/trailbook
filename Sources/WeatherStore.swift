@@ -3,8 +3,8 @@ import Combine
 
 // National Weather Service forecast (US only, free, no key).
 
-struct ForecastPeriod: Codable, Identifiable, Equatable, Sendable {
-    struct Value: Codable, Equatable, Sendable { let value: Double? }
+nonisolated struct ForecastPeriod: Codable, Identifiable, Equatable, Sendable {
+    nonisolated struct Value: Codable, Equatable, Sendable { let value: Double? }
     let number: Int
     let name: String
     let startTime: String
@@ -42,20 +42,20 @@ struct ForecastDay: Identifiable {
     var maxRain: Int { max(day?.rainChance ?? 0, night?.rainChance ?? 0) }
 }
 
-private struct PointsResponse: Decodable, Sendable {
-    struct Props: Decodable {
-        struct Rel: Decodable { struct P: Decodable { let city: String; let state: String }; let properties: P }
+private nonisolated struct PointsResponse: Decodable, Sendable {
+    nonisolated struct Props: Decodable {
+        nonisolated struct Rel: Decodable { nonisolated struct P: Decodable { let city: String; let state: String }; let properties: P }
         let forecast: String
         let forecastHourly: String?
         let relativeLocation: Rel?
     }
     let properties: Props
 }
-private struct ForecastResponse: Decodable, Sendable {
-    struct Props: Decodable { let periods: [ForecastPeriod] }
+private nonisolated struct ForecastResponse: Decodable, Sendable {
+    nonisolated struct Props: Decodable { let periods: [ForecastPeriod] }
     let properties: Props
 }
-private struct Cache: Codable {
+private nonisolated struct Cache: Codable {
     var periods: [ForecastPeriod]
     var hourly: [ForecastPeriod]? = nil
     var fetched: Date
