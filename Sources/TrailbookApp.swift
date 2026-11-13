@@ -9,6 +9,7 @@ struct TrailbookApp: App {
     @StateObject private var meals = MealStore()
     @StateObject private var trip = TripProgress()
     @StateObject private var trips = TripStore()
+    @StateObject private var maps = MapStore()
 
     var body: some Scene {
         WindowGroup {
@@ -20,19 +21,21 @@ struct TrailbookApp: App {
                 .environmentObject(meals)
                 .environmentObject(trip)
                 .environmentObject(trips)
+                .environmentObject(maps)
                 .tint(Theme.forest)
         }
     }
 }
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case trip = "Base Camp", weather = "Weather", prep = "Prep", track = "Track", compass = "Compass", meals = "Meals"
+    case trip = "Base Camp", weather = "Weather", prep = "Prep", maps = "Maps", track = "Track", compass = "Compass", meals = "Meals"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .trip: return "tent"
         case .weather: return "cloud.sun"
         case .prep: return "checkmark.square"
+        case .maps: return "map"
         case .track: return "figure.hiking"
         case .compass: return "location.north.circle"
         case .meals: return "fork.knife"
@@ -80,6 +83,7 @@ struct RootView: View {
         case .trip: TripView()
         case .weather: NavigationStack { WeatherView() }
         case .prep: PrepView()
+        case .maps: MapsView()
         case .track: TrackView()
         case .compass: CompassView()
         case .meals: mealsView()
