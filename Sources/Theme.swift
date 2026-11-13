@@ -59,6 +59,7 @@ struct HeaderBand: View {
     var left: String = ""
     var right: String = ""
     var summit: Summit = .cotopaxi
+    @State private var showSummit = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -92,7 +93,17 @@ struct HeaderBand: View {
                 .foregroundColor(Color(UIColor(hex: 0x9BD3A6)).opacity(0.85))
                 .padding(.trailing, 16)
                 .padding(.bottom, 6)
+                .opacity(showSummit ? 1 : 0)
                 .accessibilityHidden(true)
+                .allowsHitTesting(false)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeIn(duration: 0.2)) { showSummit = true }
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                withAnimation(.easeOut(duration: 0.6)) { showSummit = false }
+            }
         }
         .clipped()
         .accessibilityElement(children: .combine)
