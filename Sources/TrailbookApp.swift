@@ -10,6 +10,7 @@ struct TrailbookApp: App {
     @StateObject private var trip = TripProgress()
     @StateObject private var trips = TripStore()
     @StateObject private var maps = MapStore()
+    @StateObject private var mapLayers = MapLayerSettings()
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +23,7 @@ struct TrailbookApp: App {
                 .environmentObject(trip)
                 .environmentObject(trips)
                 .environmentObject(maps)
+                .environmentObject(mapLayers)
                 .tint(Theme.forest)
         }
     }

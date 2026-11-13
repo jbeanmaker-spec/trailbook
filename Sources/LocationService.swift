@@ -40,6 +40,12 @@ final class LocationService: NSObject, ObservableObject, CLLocationManagerDelega
 
     func stop() { manager.stopUpdatingLocation() }
 
+    /// Low-power tracking checks less often. The path is a little rougher, the battery lasts longer.
+    func setLowPower(_ on: Bool) {
+        manager.desiredAccuracy = on ? kCLLocationAccuracyNearestTenMeters : kCLLocationAccuracyBest
+        manager.distanceFilter = on ? 25 : 5
+    }
+
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let newStatus = manager.authorizationStatus
         Task { @MainActor in

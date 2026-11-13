@@ -105,8 +105,8 @@ nonisolated enum TileStore {
         root.appendingPathComponent("\(t.z)/\(t.x)_\(t.y).tile")
     }
 
-    static func remoteURL(_ t: Tile) -> URL {
-        URL(string: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/\(t.z)/\(t.y)/\(t.x)")!
+    static func remoteURL(_ t: Tile, service: String = "USGSTopo") -> URL {
+        URL(string: "https://basemap.nationalmap.gov/arcgis/rest/services/\(service)/MapServer/tile/\(t.z)/\(t.y)/\(t.x)")!
     }
 
     static func read(_ t: Tile) -> Data? { try? Data(contentsOf: fileURL(t)) }
@@ -141,9 +141,17 @@ nonisolated enum TileStore {
 
 /// The map layer: tiles come from the phone first, then from the network when there is signal.
 nonisolated final class CachedTileOverlay: MKTileOverlay {
-    init() {
+    let service: String
+    /// Only the topo map is saved on the phone. Other layers need signal.
+    let readsPhone: Bool
+    let opacity: CGFloat
+
+    init(service: String = "USGSTopo", replacesMap: Bool = true, opacity: CGFloat = 1) {
+        self.service = service
+        self.readsPhone = service == "USGSTopo"
+        self.opacity = opacity
         super.init(urlTemplate: nil)
-        canReplaceMapContent = true
+        canReplaceMapContent = replacesMap
         tileSize = CGSize(width: 256, height: 256)
         minimumZ = 3
         maximumZ = 16
@@ -151,11 +159,11 @@ nonisolated final class CachedTileOverlay: MKTileOverlay {
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping @Sendable (Data?, Error?) -> Void) {
         let tile = Tile(z: path.z, x: path.x, y: path.y)
-        if let data = TileStore.read(tile) {
+        if readsPhone, let data = TileStore.read(tile) {
             result(data, nil)
             return
         }
-        var req = URLRequest(url: TileStore.remoteURL(tile))
+        var req = URLRequest(url: TileStore.remoteURL(tile, service: service))
         req.timeoutInterval = 15
         req.setValue("Trailbook/1.0 (personal camping app)", forHTTPHeaderField: "User-Agent")
         URLSession.shared.dataTask(with: req) { data, resp, err in

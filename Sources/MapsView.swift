@@ -1,36 +1,65 @@
 import SwiftUI
 import MapKit
 
-/// The topo map. Shows the USGS map from the phone when it is saved, from the network otherwise.
+/// The map. Shows the USGS map from the phone when it is saved, from the network otherwise.
 struct MapsView: View {
     @EnvironmentObject private var tracks: TrackStore
     @EnvironmentObject private var trips: TripStore
     @EnvironmentObject private var maps: MapStore
+    @EnvironmentObject private var layers: MapLayerSettings
     @State private var showOffline = false
+    @State private var showLayers = false
+    @State private var showGPS = false
 
     var body: some View {
         VStack(spacing: 0) {
             HeaderBand(
                 label: "Maps · works with no signal",
-                title: "Topo map",
+                title: layers.base.title,
                 left: trips.current?.place ?? "Missouri",
                 right: maps.summary,
                 summit: .antisana
             )
             ZStack {
-                TopoMapView(center: trips.current?.location.coordinate,
-                            route: (tracks.recording?.points ?? []).map {
-                                CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon)
-                            })
-                Text("USGS The National Map")
-                    .font(.system(size: 10, weight: .medium))
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(Theme.surface200.opacity(0.85))
-                    .foregroundColor(Theme.inkMuted)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .padding(8)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .allowsHitTesting(false)
+                TopoMapView(
+                    center: trips.current?.location.coordinate,
+                    base: layers.base,
+                    relief: layers.relief,
+                    route: (tracks.recording?.points ?? []).map {
+                        CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon)
+                    },
+                    saved: layers.savedTracks ? savedLines : [],
+                    savedKey: layers.savedTracks ? tracks.tracks.filter { $0.id != tracks.recording?.id }.map { "\($0.id)\($0.points.count)" }.joined() : ""
+                )
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top) {
+                        GPSChip { showGPS = true }
+                        Spacer()
+                    }
+                    Spacer()
+                    if layers.base == .topo {
+                        Text("USGS The National Map")
+                            .font(.system(size: 10, weight: .medium))
+                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(Theme.surface200.opacity(0.85))
+                            .foregroundColor(Theme.inkMuted)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+                .padding(10)
+                Button { showLayers = true } label: {
+                    Image(systemName: "square.3.layers.3d")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 44, height: 44)
+                        .background(Theme.surface200.opacity(0.92))
+                        .foregroundColor(Theme.ink)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line, lineWidth: 1))
+                }
+                .accessibilityLabel("Map layers")
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 64).padding(.trailing, 10)
             }
             Button { showOffline = true } label: {
                 Label("Offline maps", systemImage: "arrow.down.circle")
@@ -43,15 +72,26 @@ struct MapsView: View {
             }
         }
         .background(Theme.surface100.ignoresSafeArea())
-        .sheet(isPresented: $showOffline) {
-            OfflineMapsView().presentationDetents([.large])
-        }
+        .sheet(isPresented: $showOffline) { OfflineMapsView().presentationDetents([.large]) }
+        .sheet(isPresented: $showLayers) { LayersView().presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $showGPS) { GPSSheet().presentationDetents([.large]) }
+        .background(GPSBootstrap())
+    }
+
+    private var savedLines: [[CLLocationCoordinate2D]] {
+        tracks.tracks
+            .filter { $0.id != tracks.recording?.id && $0.points.count > 1 }
+            .map { t in t.points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) } }
     }
 }
 
 struct TopoMapView: UIViewRepresentable {
     var center: CLLocationCoordinate2D?
+    var base: BaseMap
+    var relief: Bool
     var route: [CLLocationCoordinate2D]
+    var saved: [[CLLocationCoordinate2D]]
+    var savedKey: String
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -62,7 +102,6 @@ struct TopoMapView: UIViewRepresentable {
         v.showsCompass = true
         v.showsScale = true
         v.pointOfInterestFilter = .excludingAll
-        v.addOverlay(CachedTileOverlay(), level: .aboveLabels)
         let c = center ?? CLLocationCoordinate2D(latitude: 38.4, longitude: -92.5)
         v.setRegion(MKCoordinateRegion(center: c, span: MKCoordinateSpan(latitudeDelta: 0.3, longitudeDelta: 0.3)),
                     animated: false)
@@ -88,6 +127,33 @@ struct TopoMapView: UIViewRepresentable {
             v.setRegion(MKCoordinateRegion(center: c, span: MKCoordinateSpan(latitudeDelta: 0.3, longitudeDelta: 0.3)),
                         animated: true)
         }
+
+        // Base map, relief and saved tracks: rebuilt only when one of them changes.
+        let sig = "\(base.rawValue)|\(relief)|\(savedKey)"
+        if co.layerSig != sig {
+            co.layerSig = sig
+            for o in co.layerOverlays { v.removeOverlay(o) }
+            co.layerOverlays = []
+            v.mapType = base == .road ? .mutedStandard : .standard
+            if let service = base.service {
+                let o = CachedTileOverlay(service: service, replacesMap: true)
+                co.layerOverlays.append(o)
+                v.addOverlay(o, level: .aboveLabels)
+                if relief && base == .topo || relief && base == .satellite {
+                    let r = CachedTileOverlay(service: "USGSShadedReliefOnly", replacesMap: false, opacity: 0.45)
+                    co.layerOverlays.append(r)
+                    v.addOverlay(r, level: .aboveLabels)
+                }
+            }
+            for line in saved {
+                let p = MKPolyline(coordinates: line, count: line.count)
+                p.title = "saved"
+                co.layerOverlays.append(p)
+                v.addOverlay(p, level: .aboveLabels)
+            }
+            co.routeCount = -1   // the recording line must be drawn above the rest
+        }
+
         if co.routeCount != route.count {
             co.routeCount = route.count
             if let old = co.line { v.removeOverlay(old) }
@@ -105,13 +171,24 @@ struct TopoMapView: UIViewRepresentable {
         var lastCenter: CLLocationCoordinate2D?
         var routeCount = 0
         var line: MKPolyline?
+        var layerSig = ""
+        var layerOverlays: [MKOverlay] = []
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let tiles = overlay as? MKTileOverlay { return MKTileOverlayRenderer(tileOverlay: tiles) }
+            if let tiles = overlay as? CachedTileOverlay {
+                let r = MKTileOverlayRenderer(tileOverlay: tiles)
+                r.alpha = tiles.opacity
+                return r
+            }
             if let line = overlay as? MKPolyline {
                 let r = MKPolylineRenderer(polyline: line)
-                r.strokeColor = UIColor(hex: 0xFF5C00)
-                r.lineWidth = 4
+                if line.title == "saved" {
+                    r.strokeColor = UIColor(hex: 0x2F6FDB).withAlphaComponent(0.85)
+                    r.lineWidth = 3
+                } else {
+                    r.strokeColor = UIColor(hex: 0xFF5C00)
+                    r.lineWidth = 4
+                }
                 return r
             }
             return MKOverlayRenderer(overlay: overlay)
@@ -198,5 +275,19 @@ private struct RegionRow: View {
         }
         let pct = Int(r.fraction * 100)
         return active ? "DOWNLOADING · \(pct)%" : "PAUSED · \(pct)%"
+    }
+}
+
+/// Applies the saved GPS options and starts the GPS when the Maps page appears.
+/// Kept in its own small view so the map itself does not redraw on every GPS fix.
+private struct GPSBootstrap: View {
+    @EnvironmentObject private var gps: LocationService
+    var body: some View {
+        Color.clear.onAppear {
+            let d = UserDefaults.standard
+            gps.setLowPower(d.bool(forKey: "lowPowerTracking"))
+            UIApplication.shared.isIdleTimerDisabled = d.bool(forKey: "keepScreenOn")
+            gps.start()
+        }
     }
 }
