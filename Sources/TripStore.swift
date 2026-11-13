@@ -74,6 +74,12 @@ final class TripStore: ObservableObject {
         save()
     }
 
+    func update(_ trip: Trip) {
+        guard let i = trips.firstIndex(where: { $0.id == trip.id }) else { return }
+        trips[i] = trip
+        save()
+    }
+
     func select(_ id: UUID) {
         guard trips.contains(where: { $0.id == id }) else { return }
         currentID = id

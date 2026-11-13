@@ -6,6 +6,7 @@ struct TripView: View {
     @EnvironmentObject private var trip: TripProgress
     @EnvironmentObject private var trips: TripStore
     @State private var planning = false
+    @State private var editing: Trip? = nil
 
     private var current: Trip? { trips.current }
     private var lat: Double { current?.latitude ?? 37.0842 }
@@ -83,7 +84,7 @@ struct TripView: View {
                                 .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
                             DriveRecap()
                         }
-                        YourTrips(planning: $planning)
+                        YourTrips(planning: $planning, editing: $editing)
                     }
                     .padding(16)
                 }
@@ -98,6 +99,9 @@ struct TripView: View {
             .sheet(isPresented: $planning) {
                 PlanTripView().presentationDetents([.large])
             }
+            .sheet(item: $editing) { t in
+                PlanTripView(editing: t).presentationDetents([.large])
+            }
         }
     }
 }
@@ -105,12 +109,13 @@ struct TripView: View {
 private struct YourTrips: View {
     @EnvironmentObject private var trips: TripStore
     @Binding var planning: Bool
+    @Binding var editing: Trip?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("YOUR TRIPS").font(Theme.label).tracking(1).foregroundColor(Theme.inkMuted)
             ForEach(trips.trips) { t in
-                Button { trips.select(t.id) } label: {
+                Button { trips.select(t.id); editing = t } label: {
                     HStack(spacing: 12) {
                         Image(systemName: t.id == trips.current?.id ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 22))
@@ -121,6 +126,9 @@ private struct YourTrips: View {
                                 .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
                         }
                         Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Theme.inkMuted)
                     }
                     .frame(maxWidth: .infinity, minHeight: Theme.tapMin, alignment: .leading)
                     .contentShape(Rectangle())
@@ -133,7 +141,7 @@ private struct YourTrips: View {
                 }
             }
             if !trips.trips.isEmpty {
-                Text("Press and hold a trip to delete it.")
+                Text("Tap a trip to see its details and edit it.")
                     .font(Theme.bodySm).foregroundColor(Theme.inkMuted)
             }
             Button { planning = true } label: {
